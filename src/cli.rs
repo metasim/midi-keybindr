@@ -1,0 +1,42 @@
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand, ValueEnum};
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "midi-mapper",
+    about = "Map MIDI events to keyboard actions",
+    version,
+    propagate_version = true
+)]
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Command>,
+
+    /// Path to config file (overrides default search locations)
+    #[arg(short, long, global = true)]
+    pub config: Option<PathBuf>,
+
+    /// Increase log verbosity (-v = info, -vv = debug, -vvv = trace)
+    #[arg(short, long, global = true, action = clap::ArgAction::Count)]
+    pub verbose: u8,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Command {
+    /// List available MIDI input ports
+    List(ListArgs),
+}
+
+#[derive(Debug, clap::Args)]
+pub struct ListArgs {
+    /// Output format
+    #[arg(short, long, default_value = "human")]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum OutputFormat {
+    Human,
+    Json,
+}
