@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
 
+//! Keyboard output: translates [`KeyCombo`] values into synthesized key events via `enigo`.
+
 use anyhow::Result;
 use enigo::{Direction, Enigo, Keyboard, Settings};
 

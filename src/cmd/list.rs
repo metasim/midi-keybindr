@@ -1,11 +1,20 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
-// SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+// SPDX-FileContributor: GitHub Copilot Coding Agent
+
+//! Implementation of the `list` subcommand: enumerates available MIDI input ports.
 
 use anyhow::Result;
+use serde::Serialize;
 
 use crate::cli::OutputFormat;
 use crate::midi::port;
+
+#[derive(Serialize)]
+struct PortEntry<'a> {
+    index: usize,
+    name: &'a str,
+}
 
 /// Executes the `list` subcommand.
 pub fn execute(args: crate::cli::ListArgs) -> Result<()> {
@@ -13,13 +22,17 @@ pub fn execute(args: crate::cli::ListArgs) -> Result<()> {
 
     match args.format {
         OutputFormat::Human => print_human(&ports),
-        OutputFormat::Json => print_json(&ports),
+        OutputFormat::Json => print_json(&ports)?,
     }
 
     Ok(())
 }
 
 fn print_human(ports: &[(usize, String)]) {
+    if ports.is_empty() {
+        println!("No MIDI input ports found. Connect a MIDI device and try again.");
+        return;
+    }
     println!("Index  Name");
     println!("─────  ────────────────────────────────");
     for (index, name) in ports {
@@ -27,36 +40,14 @@ fn print_human(ports: &[(usize, String)]) {
     }
 }
 
-fn print_json(ports: &[(usize, String)]) {
-    println!("[");
-    for (i, (index, name)) in ports.iter().enumerate() {
-        let comma = if i + 1 == ports.len() { "" } else { "," };
-        println!(
-            "  {{\"index\":{},\"name\":\"{}\"}}{}",
-            index,
-            escape_json(name),
-            comma
-        );
-    }
-    println!("]");
-}
-
-fn escape_json(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
-        .replace('\t', "\\t")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::escape_json;
-
-    /// Verifies JSON-special characters are escaped in list output.
-    #[test]
-    fn escapes_json_content() {
-        assert_eq!(escape_json("a\"b"), "a\\\"b");
-    }
+fn print_json(ports: &[(usize, String)]) -> Result<()> {
+    let entries: Vec<PortEntry<'_>> = ports
+        .iter()
+        .map(|(index, name)| PortEntry {
+            index: *index,
+            name: name.as_str(),
+        })
+        .collect();
+    println!("{}", serde_json::to_string_pretty(&entries)?);
+    Ok(())
 }

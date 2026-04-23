@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
-// SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+// SPDX-FileContributor: GitHub Copilot Coding Agent
+
+//! [`KeyCombo`] represents a keyboard shortcut with optional modifier keys.
 
 use anyhow::{Result, anyhow};
 use enigo::Key;
 use serde::{Deserialize, Deserializer};
+use std::fmt;
 
 /// Parsed keyboard shortcut emitted when a mapping is triggered.
 #[derive(Debug, Clone)]
@@ -13,8 +16,47 @@ pub struct KeyCombo {
     pub modifiers: Vec<Key>,
     /// Primary key clicked while modifiers are held.
     pub key: Key,
-    /// Original combo string from configuration.
-    pub raw: String,
+}
+
+impl fmt::Display for KeyCombo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for modifier in &self.modifiers {
+            let token = match modifier {
+                Key::Control => "Ctrl",
+                Key::Shift => "Shift",
+                Key::Alt => "Alt",
+                Key::Meta => "Cmd",
+                _ => "Mod",
+            };
+            write!(f, "{token}+")?;
+        }
+        let key_token = match &self.key {
+            Key::Unicode(c) => return write!(f, "{c}"),
+            Key::Tab => "Tab",
+            Key::Return => "Enter",
+            Key::UpArrow => "Up",
+            Key::DownArrow => "Down",
+            Key::LeftArrow => "Left",
+            Key::RightArrow => "Right",
+            Key::Escape => "Esc",
+            Key::Backspace => "Backspace",
+            Key::Delete => "Delete",
+            Key::F1 => "F1",
+            Key::F2 => "F2",
+            Key::F3 => "F3",
+            Key::F4 => "F4",
+            Key::F5 => "F5",
+            Key::F6 => "F6",
+            Key::F7 => "F7",
+            Key::F8 => "F8",
+            Key::F9 => "F9",
+            Key::F10 => "F10",
+            Key::F11 => "F11",
+            Key::F12 => "F12",
+            other => return write!(f, "{other:?}"),
+        };
+        write!(f, "{key_token}")
+    }
 }
 
 /// Action payload used by mapping rules.
@@ -48,7 +90,8 @@ where
     parse_key_combo(&raw).map_err(serde::de::Error::custom)
 }
 
-fn parse_key_combo(raw: &str) -> Result<KeyCombo> {
+/// Parses a key combo string into a [`KeyCombo`].
+pub(crate) fn parse_key_combo(raw: &str) -> Result<KeyCombo> {
     let mut parts: Vec<&str> = raw
         .split('+')
         .map(str::trim)
@@ -74,11 +117,7 @@ fn parse_key_combo(raw: &str) -> Result<KeyCombo> {
 
     let key = parse_primary_key(key_token)?;
 
-    Ok(KeyCombo {
-        modifiers,
-        key,
-        raw: raw.to_owned(),
-    })
+    Ok(KeyCombo { modifiers, key })
 }
 
 fn parse_primary_key(token: &str) -> Result<Key> {
@@ -135,12 +174,12 @@ mod tests {
     use super::parse_key_combo;
     use enigo::Key;
 
-    /// Verifies combo parsing splits modifiers and preserves original text.
+    /// Verifies combo parsing splits modifiers correctly.
     #[test]
     fn parses_combo() {
         let combo = parse_key_combo("Cmd+Shift+3").unwrap();
         assert_eq!(combo.modifiers.len(), 2);
-        assert_eq!(combo.raw, "Cmd+Shift+3");
+        assert_eq!(combo.to_string(), "Cmd+Shift+3");
     }
 
     /// Verifies modifier aliases map to the expected key variants.
@@ -179,5 +218,63 @@ mod tests {
     fn rejects_unsupported_primary_token() {
         let err = parse_key_combo("Ctrl+Home").unwrap_err();
         assert!(err.to_string().contains("unsupported primary key"));
+    }
+
+    /// Verifies all navigation key names parse correctly.
+    #[test]
+    fn parses_nav_keys() {
+        for (name, expected) in &[
+            ("Up", Key::UpArrow),
+            ("Down", Key::DownArrow),
+            ("Left", Key::LeftArrow),
+            ("Right", Key::RightArrow),
+            ("Tab", Key::Tab),
+            ("Esc", Key::Escape),
+        ] {
+            assert_eq!(parse_key_combo(name).unwrap().key, *expected);
+        }
+    }
+
+    /// Verifies all function keys F1–F12 parse correctly.
+    #[test]
+    fn parses_function_keys() {
+        let expected = [
+            Key::F1,
+            Key::F2,
+            Key::F3,
+            Key::F4,
+            Key::F5,
+            Key::F6,
+            Key::F7,
+            Key::F8,
+            Key::F9,
+            Key::F10,
+            Key::F11,
+            Key::F12,
+        ];
+        for (i, k) in expected.iter().enumerate() {
+            let name = format!("F{}", i + 1);
+            assert_eq!(parse_key_combo(&name).unwrap().key, *k);
+        }
+    }
+
+    /// Verifies empty combo string returns an error.
+    #[test]
+    fn rejects_empty_combo() {
+        parse_key_combo("").unwrap_err();
+    }
+
+    /// Verifies combo with only modifiers and empty primary key returns an error.
+    #[test]
+    fn rejects_modifiers_only() {
+        parse_key_combo("Ctrl+").unwrap_err();
+    }
+
+    /// Verifies modifier tokens are case-insensitive.
+    #[test]
+    fn case_insensitive_modifier() {
+        let combo = parse_key_combo("ctrl+a").unwrap();
+        assert_eq!(combo.modifiers, vec![Key::Control]);
+        assert_eq!(combo.key, Key::Unicode('a'));
     }
 }
