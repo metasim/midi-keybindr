@@ -237,7 +237,9 @@ impl MidiEvent {
                 MidiEvent::ProgramChange { program: a },
                 IncomingMidiEvent::ProgramChange { program: b },
             ) => a == b,
-            (MidiEvent::SysRealTime { kind }, IncomingMidiEvent::SysRealTime(rt)) => kind == rt,
+            (MidiEvent::SysRealTime { kind }, IncomingMidiEvent::SysRealTime(incoming_kind)) => {
+                kind == incoming_kind
+            }
             _ => false,
         }
     }

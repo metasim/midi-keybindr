@@ -34,7 +34,7 @@ midi-keybindr/
 │   │   ├── action.rs          # Action, KeyCombo, key-combo parser
 │   │   ├── channel.rs         # ChannelSet (bitmask over channels 1–16)
 │   │   ├── device.rs          # DeviceGlobs (case-insensitive glob matching)
-│   │   └── trigger.rs         # MidiEvent, NoteSpec, ValueRange, SysRtKind
+│   │   └── trigger.rs         # MidiEvent, NoteSpec, ValueRange (imports SysRtKind from midi)
 │   ├── cmd/
 │   │   ├── init_config.rs     # `init-config` subcommand: prints sample YAML
 │   │   ├── list.rs            # `list` subcommand implementation
