@@ -1,4 +1,4 @@
-# midi-mapper
+# midi-keybindr
 
 A Rust CLI tool that maps MIDI events to keyboard shortcuts, routing MIDI
 controller input to synthesized keyboard events delivered to whatever
@@ -29,7 +29,7 @@ application is currently in focus.
   > System Settings → Privacy & Security → Accessibility
 
   macOS silently drops synthesized key events when permission is absent.
-  `midi-mapper` checks for this at startup and exits with a clear diagnostic
+  `midi-keybindr` checks for this at startup and exits with a clear diagnostic
   message if permission is missing.
 
 ---
@@ -45,7 +45,7 @@ cargo install --path .
 ## Usage
 
 ```
-midi-mapper [OPTIONS] [COMMAND]
+midi-keybindr [OPTIONS] [COMMAND]
 
 Commands:
   list    List available MIDI input ports
@@ -61,8 +61,8 @@ Options:
 ### List available MIDI ports
 
 ```bash
-midi-mapper list
-midi-mapper list --format json
+midi-keybindr list
+midi-keybindr list --format json
 ```
 
 Example output:
@@ -78,8 +78,8 @@ Index  Name
 ### Run the mapper
 
 ```bash
-midi-mapper                          # uses default config search path
-midi-mapper --config ~/my-config.yaml
+midi-keybindr                          # uses default config search path
+midi-keybindr --config ~/my-config.yaml
 ```
 
 ---
@@ -89,8 +89,8 @@ midi-mapper --config ~/my-config.yaml
 ### Config file search order
 
 1. `--config <path>` CLI flag
-2. `$MIDI_MAPPER_CONFIG` environment variable
-3. `~/.config/midi-mapper/config.yaml`
+2. `$MIDI_KEYBINDR_CONFIG` environment variable
+3. `~/.config/midi-keybindr/config.yaml`
 
 ### Config file format
 
@@ -208,7 +208,7 @@ action:
 The `RUST_LOG` environment variable overrides verbosity per module, e.g.:
 
 ```bash
-RUST_LOG=midi_mapper::midi=trace midi-mapper -v
+RUST_LOG=midi_keybindr::midi=trace midi-keybindr -v
 ```
 
 ---

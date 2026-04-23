@@ -7,7 +7,7 @@ contributors) working in the `midi-keybindr` repository.
 
 ## Project Overview
 
-`midi-mapper` is a Rust CLI tool that listens for MIDI events from one or more
+`midi-keybindr` is a Rust CLI tool that listens for MIDI events from one or more
 input devices and translates them into synthesized keyboard events delivered to
 the focused application. Mappings are defined in a YAML config file.
 

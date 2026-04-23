@@ -1,4 +1,4 @@
-# Quality Improvement Plan for `midi-mapper`
+# Quality Improvement Plan for `midi-keybindr`
 
 This document catalogues the issues found in the initial GPT-5.1 Codex
 implementation and proposes concrete improvements, grouped by theme.
@@ -142,7 +142,7 @@ above.
 
 ### 3.1 No startup confirmation when the mapper begins listening
 
-When `midi-mapper` runs successfully, it silently blocks. The user receives
+When `midi-keybindr` runs successfully, it silently blocks. The user receives
 no feedback about which MIDI ports were opened or how many mappings were
 loaded.
 
@@ -150,7 +150,7 @@ loaded.
 listing the number of mappings loaded and the ports being monitored. Example:
 
 ```
-[INFO] Loaded 4 mappings from /Users/me/.config/midi-mapper/config.yaml
+[INFO] Loaded 4 mappings from /Users/me/.config/midi-keybindr/config.yaml
 [INFO] Listening on 2 MIDI port(s): "Arturia KeyStep Pro MIDI In", "IAC Driver Bus 1"
 ```
 

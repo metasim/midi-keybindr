@@ -51,21 +51,21 @@ fn resolve_config_path(cli_config: Option<PathBuf>) -> Result<PathBuf> {
         return Ok(path);
     }
 
-    if let Ok(path) = env::var("MIDI_MAPPER_CONFIG")
+    if let Ok(path) = env::var("MIDI_KEYBINDR_CONFIG")
         && !path.trim().is_empty()
     {
         return Ok(PathBuf::from(path));
     }
 
     let home = env::var("HOME").context("HOME is not set")?;
-    let default = PathBuf::from(home).join(".config/midi-mapper/config.yaml");
+    let default = PathBuf::from(home).join(".config/midi-keybindr/config.yaml");
 
     if default.exists() {
         return Ok(default);
     }
 
     bail!(
-        "No config file found. Use --config, set MIDI_MAPPER_CONFIG, or create ~/.config/midi-mapper/config.yaml"
+        "No config file found. Use --config, set MIDI_KEYBINDR_CONFIG, or create ~/.config/midi-keybindr/config.yaml"
     )
 }
 
@@ -82,16 +82,16 @@ mod tests {
         assert_eq!(path, PathBuf::from("/tmp/config.yaml"));
     }
 
-    /// Verifies the MIDI_MAPPER_CONFIG environment variable is used when set.
+    /// Verifies the MIDI_KEYBINDR_CONFIG environment variable is used when set.
     #[test]
     fn env_var_is_used() {
         unsafe {
-            env::set_var("MIDI_MAPPER_CONFIG", "/tmp/env-config.yaml");
+            env::set_var("MIDI_KEYBINDR_CONFIG", "/tmp/env-config.yaml");
         }
         let path = resolve_config_path(None).unwrap();
         assert_eq!(path, PathBuf::from("/tmp/env-config.yaml"));
         unsafe {
-            env::remove_var("MIDI_MAPPER_CONFIG");
+            env::remove_var("MIDI_KEYBINDR_CONFIG");
         }
     }
 }

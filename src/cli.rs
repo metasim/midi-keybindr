@@ -6,10 +6,10 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
-/// Top-level CLI arguments for the `midi-mapper` executable.
+/// Top-level CLI arguments for the `midi-keybindr` executable.
 #[derive(Debug, Parser)]
 #[command(
-    name = "midi-mapper",
+    name = "midi-keybindr",
     about = "Map MIDI events to keyboard actions",
     version,
     propagate_version = true
