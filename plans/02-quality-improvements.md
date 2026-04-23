@@ -50,8 +50,7 @@ comment explaining why it is kept or what its status is (prototype?
 future use?). This creates confusion about whether it represents intended
 design or a work-in-progress.
 
-**Action**: Either remove the function entirely (preferred) or add a
-`// TODO:` comment with a clear explanation of its purpose and status.
+**Action**: Remove the function entirely 
 
 ---
 
@@ -111,8 +110,7 @@ table of all named keys.
 explicitly unsafe, and running such tests in parallel with other tests that
 read the same variable can cause non-deterministic failures.
 
-**Action**: Wrap env-mutating tests in a global `Mutex` (or use the
-`serial_test` crate) to prevent parallel execution.
+**Action**: Wrap env-mutating tests in a global `Mutex` to prevent parallel execution.
 
 ### 2.6 No test for `Config::from_path`
 
@@ -186,7 +184,7 @@ default search paths.
 There is no way to validate a config file without starting the mapper and
 connecting to real MIDI hardware.
 
-**Action**: Add a `--check` flag (or `validate` subcommand) that loads and
+**Action**: Add a `--check` flag that loads and
 validates the config file and exits with code 0 on success, printing the
 number of mappings parsed. This is especially useful in CI or scripting.
 
@@ -200,14 +198,6 @@ This is confusing.
 ```
 No MIDI input ports found. Connect a MIDI device and try again.
 ```
-
-### 3.6 No shell completion support
-
-Power users expect `--generate-completion` support for their shell.
-
-**Action**: Add a `completions` subcommand (using `clap_complete`) that
-prints shell completion scripts for `bash`, `zsh`, `fish`, and `powershell`.
-This is low-effort and widely appreciated.
 
 ---
 
@@ -254,9 +244,7 @@ needed in tests, use `pub(crate)` or a constructor function.
 error messages are only generated at parse time (config load). Once the
 combo is parsed successfully, the `raw` field is never read again.
 
-**Action**: Remove `raw` from `KeyCombo`. Any error context at parse time can
-include the raw string inline before constructing the `KeyCombo`. If
-display/debug needs are the motivation, derive `Display` on `KeyCombo`
+**Action**: Derive `Display` on `KeyCombo`
 reconstructing the string from its components.
 
 ### 4.5 `NoteSpec::raw` has the same issue
@@ -264,8 +252,7 @@ reconstructing the string from its components.
 Same as above — `NoteSpec::raw` is carried at runtime but only needed during
 config validation.
 
-**Action**: Remove `raw` from `NoteSpec` (keep it only within the parser
-function scope for error messages). Derive a `Display` impl if a human-readable
+**Action**: Derive a `Display` impl if a human-readable
 form is needed post-parse.
 
 ### 4.6 `Arc<MappingEngine>` in `cmd/run.rs` is unnecessary
@@ -280,8 +267,7 @@ of ports is small (typically 1–5), cloning the engine directly per callback
 is simpler and avoids the `Arc` overhead. Alternatively, leak a
 `&'static MappingEngine` (acceptable for a long-lived process).
 
-**Action**: Either clone `MappingEngine` directly per callback (removes `Arc`
-dependency), or document why `Arc` is preferred over clone.
+**Action**: None. Leave as is.
 
 ### 4.7 `connect_all` re-enumerates ports inside its own loop
 
@@ -330,6 +316,8 @@ This separation makes both types clearer, removes the dual-purpose `ValueRange`
 hack, and enables richer trigger patterns (e.g. `velocity: 64..=127`) in the
 future.
 
+**Action**: Separate into `IncomingMidiEvent` and `EventTrigger` types. Replace `ValueRange` with `RangeInclusive<u8>`. 
+
 ### 5.2 Consider a `Validator` layer between config loading and runtime
 
 Currently there is no validation step between YAML deserialization and
@@ -343,6 +331,8 @@ newtype wrapper that can only be produced by passing validation, and is what
 `MappingEngine::new` accepts. This makes the contract explicit: you cannot
 construct a running engine from an unvalidated config.
 
+**Action**: Before committing to a `ValidatedConfig` approach, if possible, I'd rather define more granular types with custom serde that does validation at parse time. e.g. have deserialize for `ControlChange` throw an error if `min > max`. If validation can't be done fully at parse time, make a note of that and suggest validation crates that minimize boilerplate and having to write lots of logic checks. I prefer typesystem-driven validation (make invalid states impossible) when possible.
+
 ### 5.3 `cmd/run.rs` should handle MIDI disconnect gracefully
 
 When all MIDI devices are unplugged, the midir callbacks are dropped, the
@@ -352,6 +342,8 @@ message before the exit.
 
 **Recommendation**: Handle `rx.recv()` returning `Err` by emitting a warning
 and (optionally) attempting to reconnect rather than silently exiting.
+
+**Action**: Implement reconnecting. 
 
 ### 5.4 Extract config search into its own testable function
 
@@ -365,39 +357,44 @@ vars) and may try to stat a file on disk.
 module. Accept the home directory as a parameter (or use the `dirs` crate)
 so tests can inject a fake home without env-var mutation.
 
-### 5.5 Phase 2: `learn` subcommand scaffolding
-
-The original plan describes a `learn` subcommand for interactively defining
-new mappings. While not yet implemented, the current architecture should not
-make this harder. A few forward-compatibility notes:
-
-- The `mpsc` channel in `cmd/run.rs` should carry either `Action` (run mode)
-  or raw `ParsedEvent` (learn mode). Consider an enum or a generic channel
-  payload to avoid code duplication.
-- The config write path for `learn` will need YAML serialization. Ensure
-  all config types implement `serde::Serialize` before that feature is
-  started.
-
 ---
+
+## 6. New features
+
+### 6.1 Add support for triggering on System Real-Time MIDI messages
+
+In the standard MIDI protocol, the specific events used to start and stop sequences are part of the System Real-Time message category. These messages are 1-byte status bytes that are sent without a channel number, meaning they affect all connected devices simultaneously. 
+
+#### Standard MIDI Transport Messages
+These messages control the "transport" (playback) of a MIDI sequencer or drum machine:
+
+* Start (0xFA): Signals the receiver to start playback from the very beginning (Beat 0).
+* Stop (0xFC): Signals the receiver to stop playback immediately at its current position.
+* Continue (0xFB): Signals the receiver to resume playback from the point where it was last stopped.
+
+### 6.2 Subcommand to generate sample config file
+
+To get new users operating faster, provide a subcommand to generate a template config file 
+with a simple example of mapping the _Start_/_Stop_ transport messages to the Play/Pause media keys. 
 
 ## Priority Summary
 
-| Priority | Item |
-|---|---|
-| **High** | 4.1 — Use `midly` for parsing (eliminates dead code + dependency correctness) |
-| **High** | 4.7 — Fix racey port re-enumeration in `connect_all` |
-| **High** | 2.5 — Fix unsafe env-var tests (test reliability) |
-| **High** | 3.1 / 3.2 — Startup and match logging (core UX gap) |
-| **Medium** | 5.1 — Separate trigger type from incoming-event type |
-| **Medium** | 4.2 — Replace hand-rolled JSON with `serde_json` |
-| **Medium** | 4.3 — Make `ChannelSet`/`DeviceGlobs` fields private |
-| **Medium** | 4.8 — Drop original `tx` after cloning |
-| **Medium** | 2.1–2.7 — Expand test coverage |
-| **Medium** | 3.3 — Improve `clap` help text |
-| **Low** | 4.4 / 4.5 — Remove `raw` fields from `KeyCombo`/`NoteSpec` |
-| **Low** | 3.4 — Add `--check` flag |
-| **Low** | 3.5 — Empty port list message |
-| **Low** | 3.6 — Shell completion support |
-| **Low** | 5.2 — Config validation layer |
-| **Low** | 5.4 — `dirs`-based config path resolution |
-| **Future** | 5.5 — `learn` subcommand scaffolding |
+| Priority    | Item                                                                          |
+|-------------|-------------------------------------------------------------------------------|
+| **High**    | 4.1 — Use `midly` for parsing (eliminates dead code + dependency correctness) |
+| **High**    | 4.7 — Fix racey port re-enumeration in `connect_all`                          |
+| **High**    | 2.5 — Fix unsafe env-var tests (test reliability)                             |
+| **High**    | 3.1 / 3.2 — Startup and match logging (core UX gap)                           |
+| **Medium**  | 5.1 — Separate trigger type from incoming-event type                          |
+| **Medium**  | 4.2 — Replace hand-rolled JSON with `serde_json`                              |
+| **Medium**  | 4.3 — Make `ChannelSet`/`DeviceGlobs` fields private                          |
+| **Medium**  | 4.8 — Drop original `tx` after cloning                                        |
+| **Medium**  | 2.1–2.7 — Expand test coverage                                                |
+| **Medium**  | 3.3 — Improve `clap` help text                                                |
+| **Low**     | 4.4 / 4.5 — Remove `raw` fields from `KeyCombo`/`NoteSpec`                    |
+| **Low**     | 3.4 — Add `--check` flag                                                      |
+| **Low**     | 3.5 — Empty port list message                                                 |
+| **Low**     | 5.2 — Config validation layer                                                 |
+| **Low**     | 5.4 — `dirs`-based config path resolution                                     |
+| **As Able** | 6.x New features                                                              |
+

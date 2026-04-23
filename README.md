@@ -159,24 +159,24 @@ channel: ["1-3", "9"] # channels 1, 2, 3, and 9
 
 #### `trigger`
 
-| Type | Required fields | Optional fields |
-|---|---|---|
-| `note_on` | `note` | — |
-| `note_off` | `note` | — |
-| `control_change` | `cc` | `value: { min, max }` |
-| `program_change` | `program` | — |
+| Type             | Required fields | Optional fields       |
+|------------------|-----------------|-----------------------|
+| `note_on`        | `note`          | —                     |
+| `note_off`       | `note`          | —                     |
+| `control_change` | `cc`            | `value: { min, max }` |
+| `program_change` | `program`       | —                     |
 
 **Note syntax** (`note` field): accepts a MIDI integer (`0`–`127`) or a
 note in scientific pitch notation:
 
-| Form | Examples |
-|---|---|
-| MIDI integer | `60`, `21` |
-| Natural | `C4`, `A0`, `G9` |
-| Sharp | `C#4`, `A#0` |
-| Flat | `Bb4`, `Eb3`, `Ab2` |
-| Enharmonic | `B#3` (= C4), `Cb4` (= B3) |
-| Negative octave | `C-1` (MIDI 0) |
+| Form            | Examples                   |
+|-----------------|----------------------------|
+| MIDI integer    | `60`, `21`                 |
+| Natural         | `C4`, `A0`, `G9`           |
+| Sharp           | `C#4`, `A#0`               |
+| Flat            | `Bb4`, `Eb3`, `Ab2`        |
+| Enharmonic      | `B#3` (= C4), `Cb4` (= B3) |
+| Negative octave | `C-1` (MIDI 0)             |
 
 C4 = middle C = MIDI 60.
 
@@ -198,12 +198,12 @@ action:
 
 ## Verbosity levels
 
-| Flag | Log level |
-|---|---|
-| (none) | `WARN` — only errors and warnings |
-| `-v` | `INFO` — startup info and matched events |
-| `-vv` | `DEBUG` — all MIDI events received |
-| `-vvv` | `TRACE` — full internal detail |
+| Flag   | Log level                                |
+|--------|------------------------------------------|
+| (none) | `WARN` — only errors and warnings        |
+| `-v`   | `INFO` — startup info and matched events |
+| `-vv`  | `DEBUG` — all MIDI events received       |
+| `-vvv` | `TRACE` — full internal detail           |
 
 The `RUST_LOG` environment variable overrides verbosity per module, e.g.:
 
