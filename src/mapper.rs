@@ -4,7 +4,7 @@
 
 //! [`MappingEngine`] matches incoming MIDI events against configured mappings.
 
-use crate::config::{Action, Mapping};
+use crate::config::Mapping;
 use crate::midi::event::IncomingMidiEvent;
 
 /// Matches parsed MIDI events against configured mappings.
@@ -19,7 +19,7 @@ impl MappingEngine {
         Self { mappings }
     }
 
-    /// Returns the first action that matches the given input context and event.
+    /// Returns the first mapping that matches the given input context and event.
     ///
     /// For system real-time events, `channel` should be `None` and channel filtering is skipped.
     pub fn match_event<'a>(
@@ -27,18 +27,15 @@ impl MappingEngine {
         port_name: &str,
         channel: Option<u8>,
         event: &IncomingMidiEvent,
-    ) -> Option<&'a Action> {
-        self.mappings
-            .iter()
-            .find(|mapping| {
-                mapping.devices.matches(port_name)
-                    && (channel.is_none()
-                        || mapping
-                            .channel
-                            .is_none_or(|set| channel.is_some_and(|ch| set.contains(ch))))
-                    && mapping.trigger.matches(event)
-            })
-            .map(|mapping| &mapping.action)
+    ) -> Option<&'a Mapping> {
+        self.mappings.iter().find(|mapping| {
+            mapping.devices.matches(port_name)
+                && (channel.is_none()
+                    || mapping
+                        .channel
+                        .is_none_or(|set| channel.is_some_and(|ch| set.contains(ch))))
+                && mapping.trigger.matches(event)
+        })
     }
 }
 
@@ -132,7 +129,7 @@ mod tests {
         let result = engine
             .match_event("any", Some(1), &IncomingMidiEvent::NoteOn { note: 60 })
             .unwrap();
-        assert_eq!(result.keys.to_string(), "F1");
+        assert_eq!(result.action.keys.to_string(), "F1");
     }
 
     /// Verifies ControlChange matching with and without a value range.

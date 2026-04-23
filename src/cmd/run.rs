@@ -46,17 +46,18 @@ pub fn execute(config_path: &Path) -> Result<()> {
         Box::new(
             move |_timestamp, message| match event::parse_message(message) {
                 Ok(Some(parsed)) => {
-                    if let Some(action) =
+                    if let Some(mapping) =
                         local_engine.match_event(&port_name, parsed.channel, &parsed.event)
                     {
                         info!(
                             port = %port_name,
                             channel = ?parsed.channel,
                             event = ?parsed.event,
-                            action = %action.keys,
+                            action = %mapping.action.keys,
+                            description = ?mapping.description,
                             "Matched MIDI event"
                         );
-                        if let Err(err) = local_tx.send(action.clone()) {
+                        if let Err(err) = local_tx.send(mapping.action.clone()) {
                             warn!(error = %err, "failed to enqueue action");
                         }
                     } else {

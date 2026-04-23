@@ -32,7 +32,6 @@ pub struct Config {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mapping {
     /// Optional human-readable description.
-    #[allow(dead_code)]
     pub description: Option<String>,
     /// Device name glob filter for matching MIDI ports.
     #[serde(default = "DeviceGlobs::any")]
