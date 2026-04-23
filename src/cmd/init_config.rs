@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
-// SPDX-FileContributor: GitHub Copilot Coding Agent
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
 
 //! Implementation of the `init-config` subcommand: prints a sample YAML configuration.
 
