@@ -2,14 +2,17 @@ use glob::{MatchOptions, Pattern};
 use serde::de::{self, Deserializer, SeqAccess, Visitor};
 use std::fmt;
 
+/// Case-insensitive glob patterns used to match MIDI device names.
 #[derive(Debug, Clone)]
 pub struct DeviceGlobs(pub Vec<Pattern>);
 
 impl DeviceGlobs {
+    /// Creates a matcher that accepts any device.
     pub fn any() -> Self {
         Self(vec![Pattern::new("*").expect("valid wildcard")])
     }
 
+    /// Returns `true` when at least one pattern matches `name`.
     pub fn matches(&self, name: &str) -> bool {
         let opts = MatchOptions {
             case_sensitive: false,
@@ -81,6 +84,7 @@ mod tests {
     use super::DeviceGlobs;
 
     #[test]
+    /// Verifies device glob matching is case-insensitive.
     fn matches_case_insensitive() {
         let globs: DeviceGlobs = yaml_serde::from_str("\"*akai*\"").unwrap();
         assert!(globs.matches("My Akai Device"));

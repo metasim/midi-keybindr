@@ -9,6 +9,7 @@ use crate::mapper::MappingEngine;
 use crate::midi::{event, port};
 use crate::output::{KeyboardOutput, ensure_accessibility_permission};
 
+/// Executes mapper runtime mode using the provided config path.
 pub fn execute(config_path: &Path) -> Result<()> {
     ensure_accessibility_permission()?;
 

@@ -7,10 +7,12 @@ use std::fmt;
 pub struct ChannelSet(pub u16);
 
 impl ChannelSet {
+    /// Returns a set that contains all MIDI channels 1 through 16.
     pub fn all() -> Self {
         Self(0xFFFF)
     }
 
+    /// Returns `true` when this set contains `channel`.
     pub fn contains(&self, channel: u8) -> bool {
         if !(1..=16).contains(&channel) {
             return false;
@@ -146,6 +148,7 @@ mod tests {
     use super::ChannelSet;
 
     #[test]
+    /// Verifies list and range tokens are merged into one channel bitmask.
     fn parses_channel_list_and_range() {
         let set: ChannelSet = yaml_serde::from_str("[\"2-3\", \"9\"]").unwrap();
         assert!(set.contains(2));

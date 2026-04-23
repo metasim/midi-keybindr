@@ -1,14 +1,41 @@
 use anyhow::{Result, anyhow};
 use midly::MidiMessage;
+use std::convert::TryFrom;
 
 use crate::config::trigger::{MidiEvent, NoteSpec};
 
+/// Parsed MIDI message with channel and normalized event payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedEvent {
+    /// One-based MIDI channel (1..=16).
     pub channel: u8,
+    /// Normalized event representation used by the mapper.
     pub event: MidiEvent,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MidiMessageType {
+    NoteOff,
+    NoteOn,
+    ControlChange,
+    ProgramChange,
+}
+
+impl TryFrom<u8> for MidiMessageType {
+    type Error = ();
+
+    fn try_from(status: u8) -> std::result::Result<Self, Self::Error> {
+        match status & 0xF0 {
+            0x80 => Ok(Self::NoteOff),
+            0x90 => Ok(Self::NoteOn),
+            0xB0 => Ok(Self::ControlChange),
+            0xC0 => Ok(Self::ProgramChange),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Parses raw MIDI bytes from `midir` into a normalized [`ParsedEvent`].
 pub fn parse_message(message: &[u8]) -> Result<Option<ParsedEvent>> {
     let (status, data1, data2) = match message {
         [status, data1, data2, ..] => (*status, *data1, *data2),
@@ -17,16 +44,18 @@ pub fn parse_message(message: &[u8]) -> Result<Option<ParsedEvent>> {
     };
 
     let channel = (status & 0x0F) + 1;
-    let ty = status & 0xF0;
+    let Ok(message_type) = MidiMessageType::try_from(status) else {
+        return Ok(None);
+    };
 
-    let midi_event = match ty {
-        0x80 => MidiEvent::NoteOff {
+    let midi_event = match message_type {
+        MidiMessageType::NoteOff => MidiEvent::NoteOff {
             note: NoteSpec {
                 raw: data1.to_string(),
                 note: parse_u7(data1)?,
             },
         },
-        0x90 => {
+        MidiMessageType::NoteOn => {
             let note = NoteSpec {
                 raw: data1.to_string(),
                 note: parse_u7(data1)?,
@@ -37,17 +66,16 @@ pub fn parse_message(message: &[u8]) -> Result<Option<ParsedEvent>> {
                 MidiEvent::NoteOn { note }
             }
         }
-        0xB0 => MidiEvent::ControlChange {
+        MidiMessageType::ControlChange => MidiEvent::ControlChange {
             cc: parse_u7(data1)?,
             value: Some(crate::config::trigger::ValueRange {
                 min: parse_u7(data2)?,
                 max: parse_u7(data2)?,
             }),
         },
-        0xC0 => MidiEvent::ProgramChange {
+        MidiMessageType::ProgramChange => MidiEvent::ProgramChange {
             program: parse_u7(data1)?,
         },
-        _ => return Ok(None),
     };
 
     Ok(Some(ParsedEvent {
@@ -81,6 +109,7 @@ mod tests {
     use crate::config::trigger::MidiEvent;
 
     #[test]
+    /// Verifies status byte and note data parse into a note-on event.
     fn parses_note_on() {
         let parsed = parse_message(&[0x92, 60, 100]).unwrap().unwrap();
         assert_eq!(parsed.channel, 3);

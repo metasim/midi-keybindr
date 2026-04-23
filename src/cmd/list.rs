@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::cli::OutputFormat;
 use crate::midi::port;
 
+/// Executes the `list` subcommand.
 pub fn execute(args: crate::cli::ListArgs) -> Result<()> {
     let ports = port::list_inputs()?;
 
@@ -50,6 +51,7 @@ mod tests {
     use super::escape_json;
 
     #[test]
+    /// Verifies JSON-special characters are escaped in list output.
     fn escapes_json_content() {
         assert_eq!(escape_json("a\"b"), "a\\\"b");
     }

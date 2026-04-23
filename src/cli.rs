@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+/// Top-level CLI arguments for the `midi-mapper` executable.
 #[derive(Debug, Parser)]
 #[command(
     name = "midi-mapper",
@@ -10,6 +11,7 @@ use clap::{Parser, Subcommand, ValueEnum};
     propagate_version = true
 )]
 pub struct Cli {
+    /// Optional CLI subcommand.
     #[command(subcommand)]
     pub command: Option<Command>,
 
@@ -22,12 +24,14 @@ pub struct Cli {
     pub verbose: u8,
 }
 
+/// Supported top-level subcommands.
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// List available MIDI input ports
     List(ListArgs),
 }
 
+/// Arguments for the `list` subcommand.
 #[derive(Debug, clap::Args)]
 pub struct ListArgs {
     /// Output format
@@ -35,8 +39,11 @@ pub struct ListArgs {
     pub format: OutputFormat,
 }
 
+/// Output format for command responses.
 #[derive(Debug, Clone, ValueEnum)]
 pub enum OutputFormat {
+    /// Human-readable text output.
     Human,
+    /// JSON output.
     Json,
 }

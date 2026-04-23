@@ -72,12 +72,14 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
+    /// Verifies an explicit CLI config path takes precedence.
     fn cli_config_wins() {
         let path = resolve_config_path(Some(PathBuf::from("/tmp/config.yaml"))).unwrap();
         assert_eq!(path, PathBuf::from("/tmp/config.yaml"));
     }
 
     #[test]
+    /// Verifies the MIDI_MAPPER_CONFIG environment variable is used when set.
     fn env_var_is_used() {
         unsafe {
             env::set_var("MIDI_MAPPER_CONFIG", "/tmp/env-config.yaml");

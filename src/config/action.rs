@@ -1,19 +1,26 @@
 use enigo::Key;
 use serde::{Deserialize, Deserializer};
 
+/// Parsed keyboard shortcut emitted when a mapping is triggered.
 #[derive(Debug, Clone)]
 pub struct KeyCombo {
+    /// Modifier keys pressed before the primary key.
     pub modifiers: Vec<Key>,
+    /// Primary key clicked while modifiers are held.
     pub key: Key,
+    /// Original combo string from configuration.
     pub raw: String,
 }
 
+/// Action payload used by mapping rules.
 #[derive(Debug, Deserialize, Clone)]
 pub struct Action {
+    /// Parsed keyboard shortcut for this action.
     #[serde(deserialize_with = "deserialize_key_combo")]
     pub keys: KeyCombo,
 }
 
+/// Deserializes a human-readable key combo string into a [`KeyCombo`].
 pub fn deserialize_key_combo<'de, D>(deserializer: D) -> Result<KeyCombo, D::Error>
 where
     D: Deserializer<'de>,
@@ -111,6 +118,7 @@ mod tests {
     use super::parse_key_combo;
 
     #[test]
+    /// Verifies combo parsing splits modifiers and preserves original text.
     fn parses_combo() {
         let combo = parse_key_combo("Cmd+Shift+3").unwrap();
         assert_eq!(combo.modifiers.len(), 2);

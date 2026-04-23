@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
+/// Lists available MIDI input ports as `(index, name)` pairs.
 pub fn list_inputs() -> Result<Vec<(usize, String)>> {
     let midi_in = MidiInput::new("midi-mapper list")?;
     let ports = midi_in.ports();
@@ -17,6 +18,7 @@ pub fn list_inputs() -> Result<Vec<(usize, String)>> {
         .collect()
 }
 
+/// Connects to all available MIDI input ports and returns live connection handles.
 pub fn connect_all<F>(mut make_callback: F) -> Result<Vec<MidiInputConnection<()>>>
 where
     F: FnMut(String) -> Box<dyn FnMut(u64, &[u8]) + Send + 'static>,

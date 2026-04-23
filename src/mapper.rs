@@ -1,15 +1,18 @@
 use crate::config::{Action, Mapping, MidiEvent};
 
+/// Matches parsed MIDI events against configured mappings.
 #[derive(Debug, Clone)]
 pub struct MappingEngine {
     mappings: Vec<Mapping>,
 }
 
 impl MappingEngine {
+    /// Creates a mapping engine from parsed configuration mappings.
     pub fn new(mappings: Vec<Mapping>) -> Self {
         Self { mappings }
     }
 
+    /// Returns the first action that matches the given input context and event.
     pub fn match_event<'a>(
         &'a self,
         port_name: &str,
@@ -19,41 +22,11 @@ impl MappingEngine {
         self.mappings
             .iter()
             .find(|mapping| {
-                let device_ok = mapping.devices.matches(port_name);
-                let channel_ok = mapping.channel.is_none_or(|set| set.contains(channel));
-                device_ok && channel_ok && trigger_matches(&mapping.trigger, event)
+                mapping.devices.matches(port_name)
+                    && mapping.channel.is_none_or(|set| set.contains(channel))
+                    && mapping.trigger.matches_event(event)
             })
             .map(|mapping| &mapping.action)
-    }
-}
-
-fn trigger_matches(trigger: &MidiEvent, event: &MidiEvent) -> bool {
-    match (trigger, event) {
-        (MidiEvent::NoteOn { note: a }, MidiEvent::NoteOn { note: b })
-        | (MidiEvent::NoteOff { note: a }, MidiEvent::NoteOff { note: b }) => a.note == b.note,
-        (
-            MidiEvent::ControlChange {
-                cc: trigger_cc,
-                value: trigger_value,
-            },
-            MidiEvent::ControlChange {
-                cc: event_cc,
-                value: event_value,
-            },
-        ) => {
-            if trigger_cc != event_cc {
-                return false;
-            }
-            match (trigger_value, event_value) {
-                (None, _) => true,
-                (Some(_), None) => false,
-                (Some(expected), Some(actual)) => {
-                    actual.min >= expected.min && actual.max <= expected.max
-                }
-            }
-        }
-        (MidiEvent::ProgramChange { program: a }, MidiEvent::ProgramChange { program: b }) => a == b,
-        _ => false,
     }
 }
 
@@ -64,6 +37,7 @@ mod tests {
     use super::MappingEngine;
 
     #[test]
+    /// Verifies matching requires the same trigger and allowed channel.
     fn matches_by_device_channel_and_event() {
         let mappings = vec![Mapping {
             description: None,
