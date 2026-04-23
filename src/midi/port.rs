@@ -7,7 +7,7 @@ use midir::{Ignore, MidiInput, MidiInputConnection};
 
 /// Lists available MIDI input ports as `(index, name)` pairs.
 pub fn list_inputs() -> Result<Vec<(usize, String)>> {
-    let midi_in = MidiInput::new("midi-mapper list")?;
+    let midi_in = MidiInput::new("midi-keybindr list")?;
     let ports = midi_in.ports();
 
     ports
@@ -27,14 +27,14 @@ pub fn connect_all<F>(mut make_callback: F) -> Result<Vec<MidiInputConnection<()
 where
     F: FnMut(String) -> Box<dyn FnMut(u64, &[u8]) + Send + 'static>,
 {
-    let midi_in = MidiInput::new("midi-mapper")?;
+    let midi_in = MidiInput::new("midi-keybindr")?;
     let ports = midi_in.ports();
     let mut connections = Vec::new();
     for (idx, port) in ports.iter().enumerate() {
         let port_name = midi_in
             .port_name(port)
             .unwrap_or_else(|_| "<unknown midi port>".to_string());
-        let mut connect_input = MidiInput::new("midi-mapper")?;
+        let mut connect_input = MidiInput::new("midi-keybindr")?;
         connect_input.ignore(Ignore::None);
         let connect_ports = connect_input.ports();
         let Some(connect_port) = connect_ports.get(idx) else {
@@ -44,7 +44,7 @@ where
         let conn = connect_input
             .connect(
                 connect_port,
-                &format!("midi-mapper-{port_name}"),
+                &format!("midi-keybindr-{port_name}"),
                 move |timestamp, message, _state| {
                     callback(timestamp, message);
                 },
