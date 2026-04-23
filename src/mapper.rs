@@ -36,8 +36,8 @@ mod tests {
 
     use super::MappingEngine;
 
-    #[test]
     /// Verifies matching requires the same trigger and allowed channel.
+    #[test]
     fn matches_by_device_channel_and_event() {
         let mappings = vec![Mapping {
             description: None,

@@ -117,8 +117,8 @@ fn parse_function_key(token: &str) -> Option<Key> {
 mod tests {
     use super::parse_key_combo;
 
-    #[test]
     /// Verifies combo parsing splits modifiers and preserves original text.
+    #[test]
     fn parses_combo() {
         let combo = parse_key_combo("Cmd+Shift+3").unwrap();
         assert_eq!(combo.modifiers.len(), 2);

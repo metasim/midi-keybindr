@@ -108,8 +108,8 @@ mod tests {
     use super::parse_message;
     use crate::config::trigger::MidiEvent;
 
-    #[test]
     /// Verifies status byte and note data parse into a note-on event.
+    #[test]
     fn parses_note_on() {
         let parsed = parse_message(&[0x92, 60, 100]).unwrap().unwrap();
         assert_eq!(parsed.channel, 3);

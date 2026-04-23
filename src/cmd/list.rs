@@ -50,8 +50,8 @@ fn escape_json(value: &str) -> String {
 mod tests {
     use super::escape_json;
 
-    #[test]
     /// Verifies JSON-special characters are escaped in list output.
+    #[test]
     fn escapes_json_content() {
         assert_eq!(escape_json("a\"b"), "a\\\"b");
     }

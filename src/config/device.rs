@@ -83,8 +83,8 @@ impl<'de> serde::Deserialize<'de> for DeviceGlobs {
 mod tests {
     use super::DeviceGlobs;
 
-    #[test]
     /// Verifies device glob matching is case-insensitive.
+    #[test]
     fn matches_case_insensitive() {
         let globs: DeviceGlobs = yaml_serde::from_str("\"*akai*\"").unwrap();
         assert!(globs.matches("My Akai Device"));

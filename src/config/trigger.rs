@@ -182,22 +182,22 @@ impl<'de> serde::Deserialize<'de> for NoteSpec {
 mod tests {
     use super::NoteSpec;
 
-    #[test]
     /// Verifies scientific pitch notation parses middle C as MIDI note 60.
+    #[test]
     fn parses_middle_c() {
         let note = NoteSpec::parse("C4").unwrap();
         assert_eq!(note.note, 60);
     }
 
-    #[test]
     /// Verifies enharmonic edge cases map across octave boundaries correctly.
+    #[test]
     fn parses_enharmonic_boundaries() {
         assert_eq!(NoteSpec::parse("B#3").unwrap().note, 60);
         assert_eq!(NoteSpec::parse("Cb4").unwrap().note, 59);
     }
 
-    #[test]
     /// Verifies negative octaves are supported with the C-1 lower MIDI bound.
+    #[test]
     fn parses_negative_octave() {
         assert_eq!(NoteSpec::parse("C-1").unwrap().note, 0);
     }

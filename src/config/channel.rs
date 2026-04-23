@@ -147,8 +147,8 @@ impl<'de> serde::Deserialize<'de> for ChannelSet {
 mod tests {
     use super::ChannelSet;
 
-    #[test]
     /// Verifies list and range tokens are merged into one channel bitmask.
+    #[test]
     fn parses_channel_list_and_range() {
         let set: ChannelSet = yaml_serde::from_str("[\"2-3\", \"9\"]").unwrap();
         assert!(set.contains(2));
