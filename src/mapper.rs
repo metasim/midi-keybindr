@@ -43,7 +43,7 @@ impl MappingEngine {
 #[cfg(test)]
 mod tests {
     use crate::config::{Action, DeviceGlobs, Mapping, MidiEvent, trigger::NoteSpec};
-    use crate::midi::event::IncomingMidiEvent;
+    use crate::midi::event::{IncomingMidiEvent, SysRtKind};
 
     use super::MappingEngine;
 
@@ -237,6 +237,49 @@ mod tests {
         assert!(
             engine
                 .match_event("any", Some(1), &IncomingMidiEvent::NoteOn { note: 60 })
+                .is_none()
+        );
+    }
+
+    /// Verifies SysRealTime trigger matches only the correct kind.
+    #[test]
+    fn matches_sys_real_time() {
+        let mappings = vec![Mapping {
+            description: None,
+            devices: DeviceGlobs::any(),
+            channel: None,
+            trigger: MidiEvent::SysRealTime {
+                kind: SysRtKind::Start,
+            },
+            action: make_f8_action(),
+        }];
+        let engine = MappingEngine::new(mappings);
+        // channel=None because SysRealTime events have no channel
+        assert!(
+            engine
+                .match_event(
+                    "any",
+                    None,
+                    &IncomingMidiEvent::SysRealTime(SysRtKind::Start)
+                )
+                .is_some()
+        );
+        assert!(
+            engine
+                .match_event(
+                    "any",
+                    None,
+                    &IncomingMidiEvent::SysRealTime(SysRtKind::Stop)
+                )
+                .is_none()
+        );
+        assert!(
+            engine
+                .match_event(
+                    "any",
+                    None,
+                    &IncomingMidiEvent::SysRealTime(SysRtKind::Continue)
+                )
                 .is_none()
         );
     }

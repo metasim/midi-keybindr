@@ -11,7 +11,7 @@ use serde::de::{self, Deserializer, Visitor};
 use std::fmt;
 use std::ops::RangeInclusive;
 
-use crate::midi::event::IncomingMidiEvent;
+use crate::midi::event::{IncomingMidiEvent, SysRtKind};
 
 /// MIDI trigger variants supported by mapping rules.
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -25,12 +25,8 @@ pub enum MidiEvent {
     ControlChange { cc: u8, value: Option<ValueRange> },
     /// Matches a program-change event.
     ProgramChange { program: u8 },
-    /// Matches a MIDI System Real-Time Start message.
-    Start,
-    /// Matches a MIDI System Real-Time Stop message.
-    Stop,
-    /// Matches a MIDI System Real-Time Continue message.
-    Continue,
+    /// Matches any of the MIDI System Real-Time transport messages.
+    SysRealTime { kind: SysRtKind },
 }
 
 /// Inclusive MIDI value range, wrapping [`RangeInclusive<u8>`].
@@ -241,9 +237,7 @@ impl MidiEvent {
                 MidiEvent::ProgramChange { program: a },
                 IncomingMidiEvent::ProgramChange { program: b },
             ) => a == b,
-            (MidiEvent::Start, IncomingMidiEvent::Start) => true,
-            (MidiEvent::Stop, IncomingMidiEvent::Stop) => true,
-            (MidiEvent::Continue, IncomingMidiEvent::Continue) => true,
+            (MidiEvent::SysRealTime { kind }, IncomingMidiEvent::SysRealTime(rt)) => kind == rt,
             _ => false,
         }
     }

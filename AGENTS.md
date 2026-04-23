@@ -34,12 +34,13 @@ midi-keybindr/
 │   │   ├── action.rs          # Action, KeyCombo, key-combo parser
 │   │   ├── channel.rs         # ChannelSet (bitmask over channels 1–16)
 │   │   ├── device.rs          # DeviceGlobs (case-insensitive glob matching)
-│   │   └── trigger.rs         # MidiEvent, NoteSpec, ValueRange
+│   │   └── trigger.rs         # MidiEvent, NoteSpec, ValueRange, SysRtKind
 │   ├── cmd/
+│   │   ├── init_config.rs     # `init-config` subcommand: prints sample YAML
 │   │   ├── list.rs            # `list` subcommand implementation
 │   │   └── run.rs             # Runtime: wires midi → mapper → output via mpsc
 │   └── midi/
-│       ├── event.rs           # Raw midir bytes → ParsedEvent (via midly)
+│       ├── event.rs           # Raw midir bytes → ParsedEvent (via midly); SysRtKind
 │       └── port.rs            # midir port enumeration and connection
 ```
 
@@ -75,7 +76,7 @@ There are no additional scripts. All commands are standard Cargo.
 
 ### File headers
 
-Every Rust source file begins with three SPDX comment lines:
+Every Rust source file begins with SPDX comment lines at the top:
 
 ```rust
 // SPDX-License-Identifier: MIT OR Apache-2.0
@@ -83,8 +84,29 @@ Every Rust source file begins with three SPDX comment lines:
 // SPDX-FileContributor: <contributor name or tool>
 ```
 
-New files added by agents should include these lines. Use the agent/tool name
-on the `SPDX-FileContributor` line.
+**Rules for `SPDX-FileContributor` lines:**
+
+1. **Do not remove or replace** existing `SPDX-FileContributor` lines. Each
+   line records a contributor permanently.
+2. When you modify an existing file, **append** a new `SPDX-FileContributor`
+   line below any existing ones — do not overwrite.
+3. When you create a new file, add a single `SPDX-FileContributor` line.
+4. For AI coding agents, the format is:
+   ```
+   // SPDX-FileContributor: GitHub Copilot Coding Agent (<Model Name>)
+   ```
+   where `<Model Name>` is the model used (e.g. `Claude Sonnet 4.6`,
+   `OpenAI GPT-5.4`).
+5. For human contributors, use the contributor's name or GitHub handle.
+
+**Example** — a file touched by two agents in successive sessions:
+
+```rust
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
+// SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+```
 
 ### Rust edition and style
 
@@ -139,8 +161,10 @@ User-visible error messages must be actionable. They should:
 - Run `cargo audit` before adding or updating any dependency.
 - The `midly` crate is used for MIDI byte parsing — use it; do not duplicate
   manual byte-level parsing.
-- The `keybinds` crate is used **only at config-load time** for parsing key
-  combo strings. Do not use it at runtime.
+- Key combo strings (e.g. `Cmd+Shift+3`) are parsed at config-load time
+  in `config/action.rs` using `enigo::Key` directly. The `keybinds` crate
+  (v0.2) is a dependency available for key-binding dispatching if needed in
+  future, but is **not** used at runtime by the current implementation.
 
 ---
 
@@ -150,5 +174,7 @@ User-visible error messages must be actionable. They should:
 - [ ] No new `clippy` warnings (`cargo clippy -- -D warnings`).
 - [ ] Code is formatted (`cargo fmt -- --check`).
 - [ ] New public items have `///` doc comments.
-- [ ] New source files include SPDX headers.
+- [ ] New source files include the full SPDX header block.
+- [ ] Modified source files have a new `SPDX-FileContributor` line appended
+      (existing contributor lines are preserved unchanged).
 - [ ] `AGENTS.md` or `README.md` updated if behavior or conventions changed.

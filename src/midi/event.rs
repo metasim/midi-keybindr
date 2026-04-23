@@ -8,6 +8,22 @@
 //! Note: a NoteOn with velocity 0 is normalized to a NoteOff, following the MIDI spec.
 
 use anyhow::Result;
+use serde::Deserialize;
+
+/// The kind of a MIDI System Real-Time message.
+///
+/// Only the three transport-control variants (`Start`, `Stop`, `Continue`) are exposed;
+/// `TimingClock`, `ActiveSensing`, and `Reset` are ignored by the mapper.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SysRtKind {
+    /// MIDI Start transport message.
+    Start,
+    /// MIDI Stop transport message.
+    Stop,
+    /// MIDI Continue transport message.
+    Continue,
+}
 
 /// A normalized incoming MIDI event, separate from the trigger [`MidiEvent`] in config.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,12 +36,8 @@ pub enum IncomingMidiEvent {
     ControlChange { cc: u8, value: u8 },
     /// A program-change event.
     ProgramChange { program: u8 },
-    /// MIDI System Real-Time: Start.
-    Start,
-    /// MIDI System Real-Time: Stop.
-    Stop,
-    /// MIDI System Real-Time: Continue.
-    Continue,
+    /// A MIDI System Real-Time message (Start, Stop, or Continue).
+    SysRealTime(SysRtKind),
 }
 
 /// Parsed MIDI message with channel and normalized event payload.
@@ -79,9 +91,9 @@ pub fn parse_message(message: &[u8]) -> Result<Option<ParsedEvent>> {
         Ok(LiveEvent::Realtime(rt)) => {
             use midly::live::SystemRealtime;
             let incoming = match rt {
-                SystemRealtime::Start => IncomingMidiEvent::Start,
-                SystemRealtime::Stop => IncomingMidiEvent::Stop,
-                SystemRealtime::Continue => IncomingMidiEvent::Continue,
+                SystemRealtime::Start => IncomingMidiEvent::SysRealTime(SysRtKind::Start),
+                SystemRealtime::Stop => IncomingMidiEvent::SysRealTime(SysRtKind::Stop),
+                SystemRealtime::Continue => IncomingMidiEvent::SysRealTime(SysRtKind::Continue),
                 _ => return Ok(None),
             };
             ParsedEvent {

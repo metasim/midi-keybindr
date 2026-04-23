@@ -8,14 +8,15 @@ application is currently in focus.
 
 ## Features
 
-- Maps **Note On/Off**, **Control Change**, and **Program Change** MIDI events
-  to any keyboard shortcut.
+- Maps **Note On/Off**, **Control Change**, **Program Change**, and **System
+  Real-Time** (Start/Stop/Continue) MIDI events to any keyboard shortcut.
 - Matches on specific **devices** (by case-insensitive glob), **channels**
   (single, range, or list), and **MIDI values** (exact or range).
 - Supports **scientific pitch notation** for notes (`C4`, `Bb3`, `C-1`) as
   well as raw MIDI note numbers (`60`).
 - Human-readable YAML configuration.
 - `list` subcommand enumerates available MIDI input ports.
+- `init-config` subcommand generates a starter configuration file.
 - Structured logging with configurable verbosity (`-v`, `-vv`, `-vvv`).
 
 ---
@@ -48,11 +49,13 @@ cargo install --path .
 midi-keybindr [OPTIONS] [COMMAND]
 
 Commands:
-  list    List available MIDI input ports
-  help    Print this message or the help of the given subcommand(s)
+  list         List available MIDI input ports
+  init-config  Print a sample configuration to stdout (or write to a file)
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
   -c, --config <PATH>   Path to config file (overrides default search locations)
+      --check           Validate the config file and exit without connecting to MIDI hardware
   -v, --verbose...      Increase log verbosity (-v = info, -vv = debug, -vvv = trace)
   -h, --help            Print help
   -V, --version         Print version
@@ -165,6 +168,13 @@ channel: ["1-3", "9"] # channels 1, 2, 3, and 9
 | `note_off`       | `note`          | —                     |
 | `control_change` | `cc`            | `value: { min, max }` |
 | `program_change` | `program`       | —                     |
+| `sys_real_time`  | `kind`          | —                     |
+
+**`kind`** values for `sys_real_time`: `start`, `stop`, `continue`.
+
+These match MIDI transport messages sent by DAWs and hardware sequencers.
+System Real-Time messages carry no channel, so `channel` filtering is ignored
+for these trigger types.
 
 **Note syntax** (`note` field): accepts a MIDI integer (`0`–`127`) or a
 note in scientific pitch notation:

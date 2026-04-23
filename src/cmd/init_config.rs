@@ -18,17 +18,20 @@ const SAMPLE_CONFIG: &str = "\
 mappings:
   - description: \"MIDI Start -> Play/Pause\"
     trigger:
-      type: start
+      type: sys_real_time
+      kind: start
     action:
       keys: \"F8\"
   - description: \"MIDI Stop -> Stop\"
     trigger:
-      type: stop
+      type: sys_real_time
+      kind: stop
     action:
       keys: \"F8\"
   - description: \"MIDI Continue -> Play/Pause\"
     trigger:
-      type: continue
+      type: sys_real_time
+      kind: continue
     action:
       keys: \"F8\"
   - description: \"Middle C note-on -> F8\"
