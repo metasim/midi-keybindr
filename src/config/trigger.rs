@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
+// SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+
+use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde::de::{self, Deserializer, Visitor};
 use std::fmt;
@@ -36,8 +41,11 @@ pub struct NoteSpec {
 
 impl NoteSpec {
     /// Parses either a MIDI integer (`0..=127`) or a note token like `C4`, `Bb3`, or `C-1`.
-    pub fn parse(raw: &str) -> Result<Self, String> {
+    pub fn parse(raw: &str) -> Result<Self> {
         if let Ok(num) = raw.parse::<u8>() {
+            if num > 127 {
+                return Err(anyhow!("note {raw:?} resolves out of MIDI range"));
+            }
             return Ok(Self {
                 raw: raw.to_owned(),
                 note: num,
@@ -47,7 +55,7 @@ impl NoteSpec {
         let mut chars = raw.chars().peekable();
         let letter = chars
             .next()
-            .ok_or_else(|| format!("invalid note {raw:?}"))?
+            .ok_or_else(|| anyhow!("invalid note {raw:?}"))?
             .to_ascii_uppercase();
 
         let base = match letter {
@@ -58,7 +66,7 @@ impl NoteSpec {
             'G' => 7,
             'A' => 9,
             'B' => 11,
-            _ => return Err(format!("invalid note letter in {raw:?}")),
+            _ => return Err(anyhow!("invalid note letter in {raw:?}")),
         };
 
         let mut semitone = base;
@@ -78,11 +86,11 @@ impl NoteSpec {
 
         let octave_str: String = chars.collect();
         if octave_str.is_empty() {
-            return Err(format!("missing octave in note {raw:?}"));
+            return Err(anyhow!("missing octave in note {raw:?}"));
         }
         let mut octave: i16 = octave_str
             .parse()
-            .map_err(|_| format!("invalid octave in note {raw:?}"))?;
+            .with_context(|| format!("invalid octave in note {raw:?}"))?;
 
         if semitone < 0 {
             semitone += 12;
@@ -94,7 +102,7 @@ impl NoteSpec {
 
         let midi = (octave + 1) * 12 + semitone;
         if !(0..=127).contains(&midi) {
-            return Err(format!("note {raw:?} resolves out of MIDI range"));
+            return Err(anyhow!("note {raw:?} resolves out of MIDI range"));
         }
 
         Ok(Self {

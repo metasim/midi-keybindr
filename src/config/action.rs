@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
+// SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+
+use anyhow::{Result, anyhow};
 use enigo::Key;
 use serde::{Deserialize, Deserializer};
 
@@ -21,6 +26,20 @@ pub struct Action {
 }
 
 /// Deserializes a human-readable key combo string into a [`KeyCombo`].
+///
+/// Supported syntax:
+/// - Tokens are separated by `+` (for example `Cmd+Shift+3`).
+/// - All tokens except the final token are modifiers.
+/// - Supported modifier aliases:
+///   - Control: `Ctrl`, `Control`
+///   - Shift: `Shift`
+///   - Alt/Option: `Alt`, `Opt`, `Option`
+///   - Command/Meta/Super: `Cmd`, `Command`, `Meta`, `Super`
+/// - The final token is the primary key, supporting:
+///   - One Unicode character (for example `a`, `3`, `/`)
+///   - Named keys: `Space`, `Tab`, `Enter`/`Return`, arrows, `Esc`/`Escape`,
+///     `Backspace`, `Delete`
+///   - Function keys: `F1`..`F12`
 pub fn deserialize_key_combo<'de, D>(deserializer: D) -> Result<KeyCombo, D::Error>
 where
     D: Deserializer<'de>,
@@ -29,7 +48,7 @@ where
     parse_key_combo(&raw).map_err(serde::de::Error::custom)
 }
 
-fn parse_key_combo(raw: &str) -> Result<KeyCombo, String> {
+fn parse_key_combo(raw: &str) -> Result<KeyCombo> {
     let mut parts: Vec<&str> = raw
         .split('+')
         .map(str::trim)
@@ -37,7 +56,7 @@ fn parse_key_combo(raw: &str) -> Result<KeyCombo, String> {
         .collect();
 
     if parts.is_empty() {
-        return Err("key combo cannot be empty".to_string());
+        return Err(anyhow!("key combo cannot be empty"));
     }
 
     let key_token = parts.pop().expect("checked above");
@@ -48,7 +67,7 @@ fn parse_key_combo(raw: &str) -> Result<KeyCombo, String> {
             "shift" => Key::Shift,
             "alt" | "opt" | "option" => Key::Alt,
             "cmd" | "command" | "meta" | "super" => Key::Meta,
-            _ => return Err(format!("unsupported modifier {modifier:?}")),
+            _ => return Err(anyhow!("unsupported modifier {modifier:?}")),
         };
         modifiers.push(key);
     }
@@ -62,7 +81,7 @@ fn parse_key_combo(raw: &str) -> Result<KeyCombo, String> {
     })
 }
 
-fn parse_primary_key(token: &str) -> Result<Key, String> {
+fn parse_primary_key(token: &str) -> Result<Key> {
     let lower = token.to_ascii_lowercase();
     let key = match lower.as_str() {
         "space" => return Ok(Key::Unicode(' ')),
@@ -81,14 +100,12 @@ fn parse_primary_key(token: &str) -> Result<Key, String> {
             }
 
             let mut chars = token.chars();
-            let ch = chars
-                .next()
-                .ok_or_else(|| "missing primary key".to_string())?;
+            let ch = chars.next().ok_or_else(|| anyhow!("missing primary key"))?;
             if chars.next().is_none() {
                 return Ok(Key::Unicode(ch));
             }
 
-            return Err(format!("unsupported primary key {token:?}"));
+            return Err(anyhow!("unsupported primary key {token:?}"));
         }
     };
 
@@ -116,6 +133,7 @@ fn parse_function_key(token: &str) -> Option<Key> {
 #[cfg(test)]
 mod tests {
     use super::parse_key_combo;
+    use enigo::Key;
 
     /// Verifies combo parsing splits modifiers and preserves original text.
     #[test]
@@ -123,5 +141,43 @@ mod tests {
         let combo = parse_key_combo("Cmd+Shift+3").unwrap();
         assert_eq!(combo.modifiers.len(), 2);
         assert_eq!(combo.raw, "Cmd+Shift+3");
+    }
+
+    /// Verifies modifier aliases map to the expected key variants.
+    #[test]
+    fn parses_modifier_aliases() {
+        let combo = parse_key_combo("Control+Option+F12").unwrap();
+        assert_eq!(combo.modifiers, vec![Key::Control, Key::Alt]);
+        assert_eq!(combo.key, Key::F12);
+    }
+
+    /// Verifies named non-character keys are supported as primary keys.
+    #[test]
+    fn parses_named_primary_keys() {
+        let combo = parse_key_combo("Cmd+Space").unwrap();
+        assert_eq!(combo.modifiers, vec![Key::Meta]);
+        assert_eq!(combo.key, Key::Unicode(' '));
+    }
+
+    /// Verifies single-character primary keys are accepted directly.
+    #[test]
+    fn parses_single_character_primary() {
+        let combo = parse_key_combo("Shift+/").unwrap();
+        assert_eq!(combo.modifiers, vec![Key::Shift]);
+        assert_eq!(combo.key, Key::Unicode('/'));
+    }
+
+    /// Verifies unknown modifiers are rejected with a parse error.
+    #[test]
+    fn rejects_unknown_modifier() {
+        let err = parse_key_combo("Hyper+A").unwrap_err();
+        assert!(err.to_string().contains("unsupported modifier"));
+    }
+
+    /// Verifies multi-character unknown primary tokens are rejected.
+    #[test]
+    fn rejects_unsupported_primary_token() {
+        let err = parse_key_combo("Ctrl+Home").unwrap_err();
+        assert!(err.to_string().contains("unsupported primary key"));
     }
 }

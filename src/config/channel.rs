@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
+// SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+
+use anyhow::{Context, anyhow};
 use serde::Deserialize;
 use serde::de::{self, Deserializer, SeqAccess, Visitor};
 use std::fmt;
@@ -20,28 +25,28 @@ impl ChannelSet {
         self.0 & (1 << (channel - 1)) != 0
     }
 
-    fn insert_channel(&mut self, channel: u8) -> Result<(), String> {
+    fn insert_channel(&mut self, channel: u8) -> anyhow::Result<()> {
         if !(1..=16).contains(&channel) {
-            return Err(format!("channel {channel} is out of range (1-16)"));
+            return Err(anyhow!("channel {channel} is out of range (1-16)"));
         }
         self.0 |= 1 << (channel - 1);
         Ok(())
     }
 
-    fn insert_range(&mut self, range: &str) -> Result<(), String> {
+    fn insert_range(&mut self, range: &str) -> anyhow::Result<()> {
         let (start, end) = range
             .split_once('-')
-            .ok_or_else(|| format!("invalid channel range {range:?}"))?;
+            .ok_or_else(|| anyhow!("invalid channel range {range:?}"))?;
         let start: u8 = start
             .trim()
             .parse()
-            .map_err(|_| format!("invalid channel in range {range:?}"))?;
+            .with_context(|| format!("invalid channel in range {range:?}"))?;
         let end: u8 = end
             .trim()
             .parse()
-            .map_err(|_| format!("invalid channel in range {range:?}"))?;
+            .with_context(|| format!("invalid channel in range {range:?}"))?;
         if start > end {
-            return Err(format!("invalid descending channel range {range:?}"));
+            return Err(anyhow!("invalid descending channel range {range:?}"));
         }
         for channel in start..=end {
             self.insert_channel(channel)?;
@@ -50,6 +55,14 @@ impl ChannelSet {
     }
 }
 
+/// Deserializes channel selectors from YAML.
+///
+/// Supported syntax:
+/// - Integer scalar: `1`..`16`
+/// - String scalar: `"*"` for all channels, `"3"` for one channel, `"2-4"` for a range
+/// - Sequence combining integers and strings, e.g. `[1, "3-5", "9"]`
+/// - A sequence containing `"*"` selects all channels
+/// - Empty sequences select all channels
 impl<'de> serde::Deserialize<'de> for ChannelSet {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
