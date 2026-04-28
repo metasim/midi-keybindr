@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+
+//! MIDI trigger types that describe which events activate a mapping rule.
 
 use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde::de::{self, Deserializer, Visitor};
 use std::fmt;
+use std::ops::RangeInclusive;
+
+use crate::midi::event::{IncomingMidiEvent, SysRtKind};
 
 /// MIDI trigger variants supported by mapping rules.
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -19,37 +25,126 @@ pub enum MidiEvent {
     ControlChange { cc: u8, value: Option<ValueRange> },
     /// Matches a program-change event.
     ProgramChange { program: u8 },
+    /// Matches any of the MIDI System Real-Time transport messages.
+    SysRealTime { kind: SysRtKind },
 }
 
-/// Inclusive MIDI value range.
-#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
-pub struct ValueRange {
-    /// Minimum accepted value.
-    pub min: u8,
-    /// Maximum accepted value.
-    pub max: u8,
+/// Inclusive MIDI value range, wrapping [`RangeInclusive<u8>`].
+///
+/// Deserializes from either `{min: N, max: N}` or `"N-M"` syntax.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValueRange(RangeInclusive<u8>);
+
+impl ValueRange {
+    /// Returns the inner range.
+    #[allow(dead_code)]
+    pub fn range(&self) -> &RangeInclusive<u8> {
+        &self.0
+    }
+
+    /// Returns true if the value is within the range.
+    pub fn contains(&self, value: u8) -> bool {
+        self.0.contains(&value)
+    }
 }
 
-/// Parsed note token preserving both original text and resolved MIDI value.
+impl<'de> Deserialize<'de> for ValueRange {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ValueRangeVisitor;
+
+        impl<'de> Visitor<'de> for ValueRangeVisitor {
+            type Value = ValueRange;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str(r#"a value range as {min: N, max: N} or "N-M""#)
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let (min_str, max_str) = v
+                    .split_once('-')
+                    .ok_or_else(|| E::custom(format!("invalid range {v:?}: expected N-M")))?;
+                let min: u8 = min_str
+                    .trim()
+                    .parse()
+                    .map_err(|_| E::custom(format!("invalid min in range {v:?}")))?;
+                let max: u8 = max_str
+                    .trim()
+                    .parse()
+                    .map_err(|_| E::custom(format!("invalid max in range {v:?}")))?;
+                if min > max {
+                    return Err(E::custom(format!(
+                        "invalid range {v:?}: min ({min}) must not exceed max ({max})"
+                    )));
+                }
+                Ok(ValueRange(min..=max))
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: de::MapAccess<'de>,
+            {
+                let mut min: Option<u8> = None;
+                let mut max: Option<u8> = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "min" => min = Some(map.next_value()?),
+                        "max" => max = Some(map.next_value()?),
+                        _ => {
+                            let _: de::IgnoredAny = map.next_value()?;
+                        }
+                    }
+                }
+                let min = min.ok_or_else(|| de::Error::missing_field("min"))?;
+                let max = max.ok_or_else(|| de::Error::missing_field("max"))?;
+                if min > max {
+                    return Err(de::Error::custom(format!(
+                        "invalid range: min ({min}) must not exceed max ({max})"
+                    )));
+                }
+                Ok(ValueRange(min..=max))
+            }
+        }
+
+        deserializer.deserialize_any(ValueRangeVisitor)
+    }
+}
+
+/// Parsed note token preserving the resolved MIDI note number.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoteSpec {
-    /// Original note token from configuration.
-    pub raw: String,
     /// Resolved MIDI note number in the range 0..=127.
     pub note: u8,
 }
 
+impl fmt::Display for NoteSpec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.note)
+    }
+}
+
 impl NoteSpec {
     /// Parses either a MIDI integer (`0..=127`) or a note token like `C4`, `Bb3`, or `C-1`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is not a valid MIDI note or resolves outside 0–127.
     pub fn parse(raw: &str) -> Result<Self> {
         if let Ok(num) = raw.parse::<u8>() {
             if num > 127 {
                 return Err(anyhow!("note {raw:?} resolves out of MIDI range"));
             }
-            return Ok(Self {
-                raw: raw.to_owned(),
-                note: num,
-            });
+            return Ok(Self { note: num });
+        }
+
+        // Handle values > 127 typed as integers (will fail u8 parse above, but not i16)
+        if let Ok(num) = raw.parse::<i16>() {
+            return Err(anyhow!("note {raw:?} resolves out of MIDI range ({num})"));
         }
 
         let mut chars = raw.chars().peekable();
@@ -58,7 +153,7 @@ impl NoteSpec {
             .ok_or_else(|| anyhow!("invalid note {raw:?}"))?
             .to_ascii_uppercase();
 
-        let base = match letter {
+        let base: i16 = match letter {
             'C' => 0,
             'D' => 2,
             'E' => 4,
@@ -69,7 +164,7 @@ impl NoteSpec {
             _ => return Err(anyhow!("invalid note letter in {raw:?}")),
         };
 
-        let mut semitone = base;
+        let mut semitone: i16 = base;
         if let Some(acc) = chars.peek().copied() {
             match acc {
                 '#' => {
@@ -105,25 +200,27 @@ impl NoteSpec {
             return Err(anyhow!("note {raw:?} resolves out of MIDI range"));
         }
 
-        Ok(Self {
-            raw: raw.to_owned(),
-            note: midi as u8,
-        })
+        Ok(Self { note: midi as u8 })
     }
 }
 
 impl MidiEvent {
-    /// Returns `true` when an incoming event satisfies this trigger definition.
-    pub fn matches_event(&self, event: &MidiEvent) -> bool {
-        match (self, event) {
-            (MidiEvent::NoteOn { note: a }, MidiEvent::NoteOn { note: b })
-            | (MidiEvent::NoteOff { note: a }, MidiEvent::NoteOff { note: b }) => a.note == b.note,
+    /// Returns `true` when `incoming` satisfies this trigger definition.
+    ///
+    /// For `ControlChange` with no value range, any incoming CC value matches.
+    /// For `ControlChange` with a value range, the incoming value must be within the range.
+    pub fn matches(&self, incoming: &IncomingMidiEvent) -> bool {
+        match (self, incoming) {
+            (MidiEvent::NoteOn { note: a }, IncomingMidiEvent::NoteOn { note: b }) => a.note == *b,
+            (MidiEvent::NoteOff { note: a }, IncomingMidiEvent::NoteOff { note: b }) => {
+                a.note == *b
+            }
             (
                 MidiEvent::ControlChange {
                     cc: trigger_cc,
                     value: trigger_value,
                 },
-                MidiEvent::ControlChange {
+                IncomingMidiEvent::ControlChange {
                     cc: event_cc,
                     value: event_value,
                 },
@@ -131,16 +228,17 @@ impl MidiEvent {
                 if trigger_cc != event_cc {
                     return false;
                 }
-                match (trigger_value, event_value) {
-                    (None, _) => true,
-                    (Some(_), None) => false,
-                    (Some(expected), Some(actual)) => {
-                        actual.min >= expected.min && actual.max <= expected.max
-                    }
+                match trigger_value {
+                    None => true,
+                    Some(range) => range.contains(*event_value),
                 }
             }
-            (MidiEvent::ProgramChange { program: a }, MidiEvent::ProgramChange { program: b }) => {
-                a == b
+            (
+                MidiEvent::ProgramChange { program: a },
+                IncomingMidiEvent::ProgramChange { program: b },
+            ) => a == b,
+            (MidiEvent::SysRealTime { kind }, IncomingMidiEvent::SysRealTime(incoming_kind)) => {
+                kind == incoming_kind
             }
             _ => false,
         }
@@ -168,10 +266,7 @@ impl<'de> serde::Deserialize<'de> for NoteSpec {
                 if v > 127 {
                     return Err(E::custom("MIDI note must be between 0 and 127"));
                 }
-                Ok(NoteSpec {
-                    raw: v.to_string(),
-                    note: v as u8,
-                })
+                Ok(NoteSpec { note: v as u8 })
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -208,5 +303,39 @@ mod tests {
     #[test]
     fn parses_negative_octave() {
         assert_eq!(NoteSpec::parse("C-1").unwrap().note, 0);
+    }
+
+    /// Verifies notes below MIDI 0 are rejected.
+    #[test]
+    fn rejects_below_midi_zero() {
+        NoteSpec::parse("Cb-1").unwrap_err();
+    }
+
+    /// Verifies notes above MIDI 127 are rejected.
+    #[test]
+    fn rejects_above_midi_127() {
+        NoteSpec::parse("G#9").unwrap_err();
+    }
+
+    /// Verifies integer bounds: 0 and 127 accepted, 128 rejected.
+    #[test]
+    fn parses_integer_bounds() {
+        assert_eq!(NoteSpec::parse("0").unwrap().note, 0);
+        assert_eq!(NoteSpec::parse("127").unwrap().note, 127);
+        NoteSpec::parse("128").unwrap_err();
+    }
+
+    /// Verifies note letter case-insensitivity.
+    #[test]
+    fn case_insensitive_note_letter() {
+        assert_eq!(NoteSpec::parse("c4").unwrap().note, 60);
+    }
+
+    /// Verifies invalid inputs are rejected.
+    #[test]
+    fn rejects_invalid_inputs() {
+        NoteSpec::parse("C").unwrap_err(); // missing octave
+        NoteSpec::parse("").unwrap_err(); // empty
+        NoteSpec::parse("H4").unwrap_err(); // unknown letter
     }
 }

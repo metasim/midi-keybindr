@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+
+//! [`ChannelSet`] encodes a bitmask of selected MIDI channels (1-based, channels 1–16).
 
 use anyhow::{Context, anyhow};
 use serde::Deserialize;
@@ -9,7 +12,7 @@ use std::fmt;
 
 /// Bitmask over channels 1–16. Bit N-1 corresponds to channel N.
 #[derive(Debug, Clone, Copy)]
-pub struct ChannelSet(pub u16);
+pub struct ChannelSet(u16);
 
 impl ChannelSet {
     /// Returns a set that contains all MIDI channels 1 through 16.
@@ -168,5 +171,44 @@ mod tests {
         assert!(set.contains(3));
         assert!(set.contains(9));
         assert!(!set.contains(1));
+    }
+
+    /// Verifies integer scalar input selects that channel.
+    #[test]
+    fn parses_integer_scalar() {
+        let set: ChannelSet = yaml_serde::from_str("1").unwrap();
+        assert!(set.contains(1));
+        assert!(!set.contains(2));
+    }
+
+    /// Verifies wildcard string selects all channels.
+    #[test]
+    fn parses_wildcard() {
+        let set: ChannelSet = yaml_serde::from_str("\"*\"").unwrap();
+        for ch in 1u8..=16 {
+            assert!(set.contains(ch));
+        }
+    }
+
+    /// Verifies empty sequence selects all channels.
+    #[test]
+    fn parses_empty_sequence() {
+        let set: ChannelSet = yaml_serde::from_str("[]").unwrap();
+        for ch in 1u8..=16 {
+            assert!(set.contains(ch));
+        }
+    }
+
+    /// Verifies descending range is an error.
+    #[test]
+    fn rejects_descending_range() {
+        yaml_serde::from_str::<ChannelSet>("\"5-3\"").unwrap_err();
+    }
+
+    /// Verifies out-of-range channels are errors.
+    #[test]
+    fn rejects_out_of_range() {
+        yaml_serde::from_str::<ChannelSet>("17").unwrap_err();
+        yaml_serde::from_str::<ChannelSet>("0").unwrap_err();
     }
 }

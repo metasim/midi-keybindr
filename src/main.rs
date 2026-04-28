@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+
+//! `midi-keybindr` binary entry point: parses CLI arguments, initialises tracing,
+//! resolves the config path, and dispatches to the appropriate subcommand.
 
 mod cli;
 mod cmd;
@@ -22,8 +26,20 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     init_tracing(cli.verbose)?;
 
+    if cli.check {
+        let path = resolve_config_path(cli.config)?;
+        let config = config::Config::from_path(&path)?;
+        println!(
+            "Config OK: {} mapping(s) loaded from {}",
+            config.mappings.len(),
+            path.display()
+        );
+        return Ok(());
+    }
+
     match cli.command {
         Some(Command::List(args)) => cmd::list::execute(args),
+        Some(Command::InitConfig(args)) => cmd::init_config::execute(args),
         None => {
             let path = resolve_config_path(cli.config)?;
             cmd::run::execute(&path)
@@ -74,6 +90,9 @@ mod tests {
     use super::resolve_config_path;
     use std::env;
     use std::path::PathBuf;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     /// Verifies an explicit CLI config path takes precedence.
     #[test]
@@ -85,6 +104,7 @@ mod tests {
     /// Verifies the MIDI_KEYBINDR_CONFIG environment variable is used when set.
     #[test]
     fn env_var_is_used() {
+        let _guard = ENV_LOCK.lock().unwrap();
         unsafe {
             env::set_var("MIDI_KEYBINDR_CONFIG", "/tmp/env-config.yaml");
         }

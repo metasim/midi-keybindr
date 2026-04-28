@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+
+//! Configuration loading: parses YAML mapping rules into strongly-typed structures.
 
 pub mod action;
 pub mod channel;
@@ -45,10 +48,34 @@ pub struct Mapping {
 
 impl Config {
     /// Loads and parses a configuration file from disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read or the YAML is malformed.
     pub fn from_path(path: &Path) -> Result<Self> {
         let contents = fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file {}", path.display()))?;
         yaml_serde::from_str(&contents)
             .with_context(|| format!("Failed to parse YAML config {}", path.display()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+    use std::io::Write;
+
+    /// Verifies Config::from_path round-trips a minimal YAML config.
+    #[test]
+    fn round_trips_minimal_config() {
+        let yaml = "mappings:\n  - trigger:\n      type: note_on\n      note: 60\n    action:\n      keys: F8\n";
+        let mut f = tempfile::NamedTempFile::new().unwrap();
+        f.write_all(yaml.as_bytes()).unwrap();
+        let config = Config::from_path(f.path()).unwrap();
+        assert_eq!(config.mappings.len(), 1);
+        match &config.mappings[0].trigger {
+            crate::config::trigger::MidiEvent::NoteOn { note } => assert_eq!(note.note, 60),
+            _ => panic!("expected NoteOn"),
+        }
     }
 }

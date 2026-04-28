@@ -8,7 +8,7 @@ use std::fmt;
 
 /// Case-insensitive glob patterns used to match MIDI device names.
 #[derive(Debug, Clone)]
-pub struct DeviceGlobs(pub Vec<Pattern>);
+pub struct DeviceGlobs(Vec<Pattern>);
 
 impl DeviceGlobs {
     /// Creates a matcher that accepts any device.
