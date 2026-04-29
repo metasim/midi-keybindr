@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
 
 //! Implementation of the `display` subcommand: a live ratatui TUI that shows
 //! incoming MIDI events (right pane) and keyboard events (left pane) in
@@ -9,7 +10,7 @@
 
 use std::io;
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use crossterm::ExecutableCommand;
@@ -32,6 +33,8 @@ use crate::midi::{event as midi_event, port};
 pub struct MidiEventRecord {
     /// Monotonically increasing sequence number (1-based).
     pub seq: u64,
+    /// Elapsed time since the TUI session started, captured when the event arrived.
+    pub timestamp: Duration,
     /// Name of the MIDI port the event arrived on.
     pub port: String,
     /// MIDI channel (1–16), or `None` for System Real-Time messages.
@@ -44,6 +47,8 @@ pub struct MidiEventRecord {
 pub struct KeyboardEventRecord {
     /// Monotonically increasing sequence number (1-based).
     pub seq: u64,
+    /// Elapsed time since the TUI session started, captured when the event arrived.
+    pub timestamp: Duration,
     /// The raw crossterm key event.
     pub key_event: KeyEvent,
 }
@@ -77,6 +82,8 @@ pub struct AppState {
     pub keyboard_auto_scroll: bool,
     /// When `true` the MIDI pane scrolls to the newest event automatically.
     pub midi_auto_scroll: bool,
+    /// The instant the session started; used to compute per-event elapsed timestamps.
+    pub start_time: Instant,
     midi_seq: u64,
     keyboard_seq: u64,
 }
@@ -93,6 +100,7 @@ impl AppState {
             running: true,
             keyboard_auto_scroll: true,
             midi_auto_scroll: true,
+            start_time: Instant::now(),
             midi_seq: 0,
             keyboard_seq: 0,
         }
@@ -104,6 +112,7 @@ impl AppState {
         self.midi_seq += 1;
         self.midi_events.push(MidiEventRecord {
             seq: self.midi_seq,
+            timestamp: self.start_time.elapsed(),
             port,
             channel,
             event,
@@ -120,6 +129,7 @@ impl AppState {
         self.keyboard_seq += 1;
         self.keyboard_events.push(KeyboardEventRecord {
             seq: self.keyboard_seq,
+            timestamp: self.start_time.elapsed(),
             key_event,
         });
         if self.keyboard_auto_scroll {
@@ -284,6 +294,18 @@ pub fn crossterm_key_to_action_string(key_event: &KeyEvent) -> String {
 
 // ─── Display helpers ─────────────────────────────────────────────────────────
 
+/// Formats an elapsed `Duration` as `MM:SS` (e.g. `"05:42"`).
+///
+/// Minutes are allowed to exceed 59 so that sessions longer than an hour
+/// are still readable without rolling over (e.g. `"65:03"` for 65 minutes
+/// and 3 seconds).
+pub fn format_timestamp(d: Duration) -> String {
+    let total_secs = d.as_secs();
+    let mm = total_secs / 60;
+    let ss = total_secs % 60;
+    format!("{mm:02}:{ss:02}")
+}
+
 /// Returns a short human-readable type label for a MIDI event.
 fn midi_event_type(event: &IncomingMidiEvent) -> &'static str {
     match event {
@@ -351,6 +373,7 @@ pub fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
 
     let kb_header = Row::new([
         Cell::from("#").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Time").style(Style::default().add_modifier(Modifier::BOLD)),
         Cell::from("Key").style(Style::default().add_modifier(Modifier::BOLD)),
         Cell::from("Config JSON").style(Style::default().add_modifier(Modifier::BOLD)),
     ]);
@@ -361,6 +384,7 @@ pub fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         .map(|r| {
             Row::new([
                 Cell::from(r.seq.to_string()),
+                Cell::from(format_timestamp(r.timestamp)),
                 Cell::from(crossterm_key_to_action_string(&r.key_event)),
                 Cell::from(keyboard_config_json(&r.key_event)),
             ])
@@ -371,7 +395,8 @@ pub fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         kb_rows,
         [
             Constraint::Length(4),
-            Constraint::Length(20),
+            Constraint::Length(5),
+            Constraint::Length(18),
             Constraint::Fill(1),
         ],
     )
@@ -395,6 +420,7 @@ pub fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
 
     let midi_header = Row::new([
         Cell::from("#").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Time").style(Style::default().add_modifier(Modifier::BOLD)),
         Cell::from("Port").style(Style::default().add_modifier(Modifier::BOLD)),
         Cell::from("Ch").style(Style::default().add_modifier(Modifier::BOLD)),
         Cell::from("Type").style(Style::default().add_modifier(Modifier::BOLD)),
@@ -408,7 +434,8 @@ pub fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         .map(|r| {
             Row::new([
                 Cell::from(r.seq.to_string()),
-                Cell::from(truncate_str(&r.port, 14)),
+                Cell::from(format_timestamp(r.timestamp)),
+                Cell::from(truncate_str(&r.port, 12)),
                 Cell::from(
                     r.channel
                         .map_or_else(|| "RT".to_string(), |c| c.to_string()),
@@ -424,7 +451,8 @@ pub fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         midi_rows,
         [
             Constraint::Length(4),
-            Constraint::Length(14),
+            Constraint::Length(5),
+            Constraint::Length(12),
             Constraint::Length(3),
             Constraint::Length(7),
             Constraint::Length(14),
@@ -728,6 +756,38 @@ mod tests {
         let result = truncate_str("hello world", 7);
         assert_eq!(result.chars().count(), 7);
         assert!(result.ends_with('…'));
+    }
+
+    // ── format_timestamp ─────────────────────────────────────────────────────
+
+    /// Zero duration formats as "00:00".
+    #[test]
+    fn format_timestamp_zero() {
+        assert_eq!(format_timestamp(Duration::ZERO), "00:00");
+    }
+
+    /// Whole minutes format correctly.
+    #[test]
+    fn format_timestamp_whole_minutes() {
+        assert_eq!(format_timestamp(Duration::from_secs(120)), "02:00");
+    }
+
+    /// Mixed minutes and seconds both zero-padded.
+    #[test]
+    fn format_timestamp_mixed() {
+        assert_eq!(format_timestamp(Duration::from_secs(65)), "01:05");
+    }
+
+    /// Sub-second precision is truncated (floor to seconds).
+    #[test]
+    fn format_timestamp_subsecond_truncated() {
+        assert_eq!(format_timestamp(Duration::from_millis(59_999)), "00:59");
+    }
+
+    /// Large durations beyond 60 minutes keep counting without rolling over.
+    #[test]
+    fn format_timestamp_beyond_one_hour() {
+        assert_eq!(format_timestamp(Duration::from_secs(3723)), "62:03");
     }
 
     // ── AppState ─────────────────────────────────────────────────────────────

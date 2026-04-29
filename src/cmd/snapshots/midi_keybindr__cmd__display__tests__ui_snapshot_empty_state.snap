@@ -3,7 +3,7 @@ source: src/cmd/display.rs
 expression: buffer_to_string(terminal.backend().buffer())
 ---
 ┌ Keyboard Events ─────────────────────┐┌ MIDI Events ─────────────────────────┐
-│#    Key                  Config JSON ││#    Port  Ch  Type    Details        │
+│#    Time  Key                Config J││#    Time  Port  Ch  Type    Details  │
 │                                      ││                                      │
 │                                      ││                                      │
 │                                      ││                                      │
