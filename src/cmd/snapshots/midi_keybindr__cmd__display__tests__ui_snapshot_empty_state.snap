@@ -1,0 +1,24 @@
+---
+source: src/cmd/display.rs
+expression: buffer_to_string(terminal.backend().buffer())
+---
+┌ Keyboard Events ─────────────────────┐┌ MIDI Events ─────────────────────────┐
+│#    Key                  Config JSON ││#    Port  Ch  Type    Details        │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+│                                      ││                                      │
+└──────────────────────────────────────┘└──────────────────────────────────────┘
+Ctrl+C: quit  Tab: switch pane  ↑↓: scroll  — Keyboard: 0  MIDI: 0

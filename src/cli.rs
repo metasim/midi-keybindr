@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
 // SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
 
 //! CLI argument types for the `midi-keybindr` executable, parsed with `clap`.
 
@@ -55,6 +56,8 @@ pub enum Command {
     List(ListArgs),
     /// Print a sample configuration file
     InitConfig(InitConfigArgs),
+    /// Display live MIDI and keyboard events in an interactive TUI
+    Display(DisplayArgs),
 }
 
 /// Arguments for the `list` subcommand.
@@ -72,6 +75,10 @@ pub struct InitConfigArgs {
     #[arg(short, long)]
     pub output: Option<PathBuf>,
 }
+
+/// Arguments for the `display` subcommand.
+#[derive(Debug, clap::Args)]
+pub struct DisplayArgs {}
 
 /// Output format for command responses.
 #[derive(Debug, Clone, ValueEnum)]

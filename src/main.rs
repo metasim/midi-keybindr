@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Simeon H.K. Fitch
 // SPDX-FileContributor: GitHub Copilot Coding Agent (OpenAI GPT-5.4)
 // SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
+// SPDX-FileContributor: GitHub Copilot Coding Agent (Claude Sonnet 4.6)
 
 //! `midi-keybindr` binary entry point: parses CLI arguments, initialises tracing,
 //! resolves the config path, and dispatches to the appropriate subcommand.
@@ -40,6 +41,7 @@ fn main() -> Result<()> {
     match cli.command {
         Some(Command::List(args)) => cmd::list::execute(args),
         Some(Command::InitConfig(args)) => cmd::init_config::execute(args),
+        Some(Command::Display(args)) => cmd::display::execute(args),
         None => {
             let path = resolve_config_path(cli.config)?;
             cmd::run::execute(&path)
