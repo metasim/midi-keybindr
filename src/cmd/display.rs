@@ -268,7 +268,7 @@ pub fn crossterm_key_to_action_string(key_event: &KeyEvent) -> String {
         KeyCode::F(n) => format!("F{n}"),
         KeyCode::Enter => "Enter".to_owned(),
         KeyCode::Tab => "Tab".to_owned(),
-        KeyCode::BackTab => "Tab".to_owned(), // always paired with Shift
+        KeyCode::BackTab => "Tab".to_owned(), // crossterm's distinct code for Shift+Tab
         KeyCode::Backspace => "Backspace".to_owned(),
         KeyCode::Delete => "Delete".to_owned(),
         KeyCode::Esc => "Esc".to_owned(),
@@ -520,7 +520,7 @@ fn run_event_loop(
                 (KeyModifiers::CONTROL, KeyCode::Char('c' | 'q')) => {
                     state.running = false;
                 }
-                (KeyModifiers::NONE, KeyCode::Tab) | (KeyModifiers::NONE, KeyCode::BackTab) => {
+                (KeyModifiers::NONE, KeyCode::Tab) | (KeyModifiers::SHIFT, KeyCode::BackTab) => {
                     state.toggle_pane();
                 }
                 (KeyModifiers::NONE, KeyCode::Up) => state.scroll_up(),
